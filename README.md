@@ -72,14 +72,25 @@ B. C++ : 1. g++ extorter_worm -lssh -o extorterW
 2. After the worm has finished execution, the worm is deleted from the system. The worm also deletes the downloaded openssl program, and the tared directory.
 3. SystemCompromised.txt and DocumentsDir.tar.enc is left in the /home/ubuntu folder.
  
-# The Password File Thief Worm 
-Prerequisites: 
+###The Password File Thief Worm 
+####Prerequisites: 
 1. All the dependencies needs to be installed.
 2. Copy this worm to the /tmp folder
-Command for running the worm: 
-Python: python passwordthief_worm.py 
-C++ : 1. g++ passwordthief_worm -lssh -o passwordW
-      2. ./passwordW
 
+####Functionalities:
+1. This worm encompasses all features and conform to all requirements of the replicator worm, except the requirement above.
+2. When the is executed on a victim system, it shall copy the /etc/passwd file, the file containing information about system user names and passwords, back to the attacker's system (that is, the system from which the attack was originally initiated).
+3. When the /etc/passwd file is copied to the attacker's system it shall be named as passwd <IP of the victim system>. For example, passwd 192.168.1.101.
+4. This worm does not touch the password file on the attacker's system (that is, the system from which the attack was originally initiated).
+
+####Command for running the worm: 
+A. Python: python passwordthief_worm.py 
+B. C++ : 1. g++ passwordthief_worm -lssh -o passwordW
+      2. ./passwordW
+      
+####Output:
+1. All the systems in the network with port 22 open, will be infected. They will have infectionMarker_passW_python.txt and/or infectionMarker_passW_CPP.txt in the /tmp folder. This shows that the worm has executed on the system. 
+2. After the worm has finished execution, the worm is deleted from the system. The worm also deletes the downloaded openssl program, and the tared directory.
+3. All the copied files will be present in the /tmp directory of the attacker machine.
 
 
