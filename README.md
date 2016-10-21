@@ -13,7 +13,11 @@
 
 ## Python Worms:-
 ## Pre-req for pythom Worms to work.
-
+All the required dependencies need to be installed inorder to sucessfully run the worm.
+1. Download the script
+2. Go to the downloaded directory via cmd
+3. chmod a+x install.sh
+4. ./install.sh
 
  ### Functionalities
 
@@ -24,14 +28,46 @@
 
 
 
-# The Replicator Worm 
-#### -replicatorworm.py
+### The Replicator Worm 
+####Prerequisites: 
+1. All the dependencies needs to be installed.
+2. Copy this worm to the /tmp folder
 
-# The Extorter Worm 
-#### -extorterworm.py 
+####Functionalities:
+1. When executed, the worm scans its local area network for presence of other systems running SSH service.
+2. The worm carries a dictionary of possible user names and passwords. 
+3. The worm attempts to login into discovered host systems using SSH user names and passwords in its dictionary until it successfully logs into one of the hosts or until it has tried all user names and passwords against all hosts without success. If the worm is unable to guess the credentials for any of the discovered systems, it terminates. Otherwise, the worm checks if the remote system has already been infected. If so, then it skips this system and moves on to attacking other systems. If not so, the worm copies itself onto the compromised system, executes itself on the newly compromised system, and terminates on the current system.
+4. Once executed on the remote system, the worm checks if the system is is already infected and if so, terminates. Otherwise, the worm attempts to spread to other systems using the above-stated process. This check prevents two copies of the same worm from executing on the same system at the same time.
+5. The worm does not launch attacks from the same system more than once.
+
+####Command for running the worm: 
+Python: python replicator_worm.py 
+C++ : 1. g++ replicator_worm -lssh -o replicatorW
+      2. ./replicatorW
+
+####Output:
+1. All the systems inthe network with port 22 open, will be infected. They will have infectionMarker_repW_python.txt in the /tmp folder. This shows that the worm has executed on the system. 
+2. After the worm has finished execution, the worm is deleted from the system. SO that users will not be able to decode the logic behind the worm
+
+# The Extorter Worm
+Prerequisites: 
+1. All the dependencies needs to be installed.
+2. Copy this worm to the /tmp folder
+3. /home/ubuntu/Documents folder needs to be present
+
+Command for running the worm: 
+Python: python extorter_worm.py 
+C++ : 1. g++ extorter_worm -lssh -o extorterW
+      2. ./extorterW
  
 # The Password File Thief Worm 
-#### -passwordthiefworm.py
+Prerequisites: 
+1. All the dependencies needs to be installed.
+2. Copy this worm to the /tmp folder
+Command for running the worm: 
+Python: python passwordthief_worm.py 
+C++ : 1. g++ passwordthief_worm -lssh -o passwordW
+      2. ./passwordW
 
 
 
