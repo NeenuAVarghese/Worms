@@ -41,24 +41,36 @@ All the required dependencies need to be installed inorder to sucessfully run th
 5. The worm does not launch attacks from the same system more than once.
 
 ####Command for running the worm: 
-Python: python replicator_worm.py 
-C++ : 1. g++ replicator_worm -lssh -o replicatorW
-      2. ./replicatorW
+A. Python: python replicator_worm.py 
+B. C++ : 1. g++ replicator_worm -lssh -o replicatorW
+         2. ./replicatorW
 
 ####Output:
-1. All the systems inthe network with port 22 open, will be infected. They will have infectionMarker_repW_python.txt in the /tmp folder. This shows that the worm has executed on the system. 
+1. All the systems in the network with port 22 open, will be infected. They will have infectionMarker_repW_python.txt and/or infectionMarker_repW_CPP.txt in the /tmp folder. This shows that the worm has executed on the system. 
 2. After the worm has finished execution, the worm is deleted from the system. SO that users will not be able to decode the logic behind the worm
 
-# The Extorter Worm
-Prerequisites: 
+###The Extorter Worm
+####Prerequisites: 
 1. All the dependencies needs to be installed.
 2. Copy this worm to the /tmp folder
 3. /home/ubuntu/Documents folder needs to be present
 
-Command for running the worm: 
-Python: python extorter_worm.py 
-C++ : 1. g++ extorter_worm -lssh -o extorterW
-      2. ./extorterW
+####Functionalities
+1. This worm encompasses all features and conform to all requirements of the replicator worm, except the above requirement.
+2. This worm downloads the encryption program from the http://ecs.fullerton.edu/mgofman/openssl URL.
+3. After downloading the openssl program the worm creates a tar archive of the /home/cpsc/Documents directory and encrypt it using the openssl program. After the Documents directory has been encrypted, the worm deletes the /home/cpsc/Documents directory and leaves a note (SystemCompromised.txt)telling the user that his files have been encrypted and that he/she needs to purchase the decryption key from the attacker in order to get the files back.
+4. All fles is encrypted using password cs456worm (which openssl program accepts as one of the arguments; please see the next section for details).
+6. This worm leaves the files on the attacker's system unharmed.
+
+####Command for running the worm: 
+A. Python: python extorter_worm.py 
+B. C++ : 1. g++ extorter_worm -lssh -o extorterW
+         2. ./extorterW
+ 
+####Output:
+1. All the systems in the network with port 22 open, will be infected. They will have infectionMarker_extW_python.txt and/or infectionMarker_extW_CPP.txt in the /tmp folder. This shows that the worm has executed on the system. 
+2. After the worm has finished execution, the worm is deleted from the system. The worm also deletes the downloaded openssl program, and the tared directory.
+3. SystemCompromised.txt and DocumentsDir.tar.enc is left in the /home/ubuntu folder.
  
 # The Password File Thief Worm 
 Prerequisites: 
