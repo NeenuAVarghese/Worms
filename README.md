@@ -1,21 +1,13 @@
 
 ### Worm: replicatorworm.py  ||  extorterworm.py  ||  passwordthiefworm.py
 
-
-
-#### Names and email addresses of all team members.:
-
-- 1) Neenu Ann Varghese (CWID- )
-- 2) Anusha (CWID- )
-- 3) Ashish Merani (CWID- )
-
 ## Python Worms:-
 ## Pre-req for pythom Worms to work.
 All the required dependencies need to be installed inorder to sucessfully run the worm.
-1. Download the script
-2. Go to the downloaded directory via cmd
-3. chmod a+x install.sh
-4. ./install.sh
+- Download the script
+- Go to the downloaded directory via cmd
+- chmod a+x install.sh
+- ./install.sh
 
 ### The Replicator Worm 
 ####Prerequisites: 
@@ -30,9 +22,9 @@ All the required dependencies need to be installed inorder to sucessfully run th
 5. The worm does not launch attacks from the same system more than once.
 
 ####Command for running the worm: 
-A. Python: python replicator_worm.py 
-B. C++ : 1. g++ replicator_worm -lssh -o replicatorW
-         2. ./replicatorW
+1. Python: python replicator_worm.py 
+2. C++ : g++ replicator_worm -lssh -o replicatorW
+         ./replicatorW
 
 ####Output:
 1. All the systems in the network with port 22 open, will be infected. They will have infectionMarker_repW_python.txt and/or infectionMarker_repW_CPP.txt in the /tmp folder. This shows that the worm has executed on the system. 
@@ -52,9 +44,9 @@ B. C++ : 1. g++ replicator_worm -lssh -o replicatorW
 6. This worm leaves the files on the attacker's system unharmed.
 
 ####Command for running the worm: 
-A. Python: python extorter_worm.py 
-B. C++ : 1. g++ extorter_worm -lssh -o extorterW
-         2. ./extorterW
+1. Python: python extorter_worm.py 
+2. C++ : g++ extorter_worm -lssh -o extorterW
+         ./extorterW
  
 ####Output:
 1. All the systems in the network with port 22 open, will be infected. They will have infectionMarker_extW_python.txt and/or infectionMarker_extW_CPP.txt in the /tmp folder. This shows that the worm has executed on the system. 
@@ -73,9 +65,9 @@ B. C++ : 1. g++ extorter_worm -lssh -o extorterW
 4. This worm does not touch the password file on the attacker's system (that is, the system from which the attack was originally initiated).
 
 ####Command for running the worm: 
-A. Python: python passwordthief_worm.py 
-B. C++ : 1. g++ passwordthief_worm -lssh -o passwordW
-      2. ./passwordW
+1. Python: python passwordthief_worm.py 
+2. C++ : g++ passwordthief_worm -lssh -o passwordW
+         ./passwordW
       
 ####Output:
 1. All the systems in the network with port 22 open, will be infected. They will have infectionMarker_passW_python.txt and/or infectionMarker_passW_CPP.txt in the /tmp folder. This shows that the worm has executed on the system. 
